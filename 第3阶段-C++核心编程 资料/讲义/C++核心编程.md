@@ -427,6 +427,12 @@ int main() {
 
 
 > 总结：通过引用参数产生的效果同按地址传递是一样的。引用的语法更清楚简单
+>
+> 直观来看，值传递就仅仅是传进来了变量所代表的值，在函数内部修改不会影响外部的原始变量，而指针作为函数参数传递意味着间接引用，即对原始变量所在的内存中的数据直接进行修改，可以起到改变外部变量值的效果。
+>
+> 而引用传参则是新建了指向原始变量的引用，通过新的引用来直接访问原始变量，因此也可以起到修改函数外部变量的作用。
+>
+> 后记：原来引用也是指针，只不过编译器自动帮我们做了一些事情，所以语法才会简单一些。
 
 
 
@@ -442,13 +448,28 @@ int main() {
 
 ### 2.4 引用做函数返回值
 
+#### Tips：
+
+**基本概念**
+
+左值：在内存中有可以访问的地址，对象是一个左值。
+
+右值：不可以取地址，整数10是个右值。
+
+引用：对象的别名，没有创建新的对象，仅仅给已经存在的对象赋予了一个新的名字。
+
+> 1. 引用是对象的别名，对于引用的一切操作都是对对象的操作；
+> 2. 引用自身从概念上没有大小（或者就是对象的大小）；但引用在传递或需要存储时，其传递或存储的大小为地址的大小。
+> 3. 引用必须初始化；
+> 4. 引用不可能重新绑定；
+> 5. 将指针所指向的对象绑定到一个引用时，需要确保指针非空。
+> 6. 任何引用类型的变量，都是左值。
+
 
 
 作用：引用是可以作为函数的返回值存在的
 
-
-
-注意：**不要返回局部变量引用**
+注意：**不要返回局部变量引用，局部变量会在函数执行完后就销毁**
 
 用法：函数调用作为左值
 
@@ -465,7 +486,7 @@ int& test01() {
 
 //返回静态变量引用
 int& test02() {
-	static int a = 20;
+	static int a = 20;  // 静态变量，存放在全局区
 	return a;
 }
 
@@ -473,15 +494,18 @@ int main() {
 
 	//不能返回局部变量的引用
 	int& ref = test01();
-	cout << "ref = " << ref << endl;
-	cout << "ref = " << ref << endl;
+	cout << "ref = " << ref << endl;  // 和之前的测试一样，有的版本的编译器会在第一次调用时正确返回
+	cout << "ref = " << ref << endl;  // 但第二次必定错误
 
 	//如果函数做左值，那么必须返回引用
 	int& ref2 = test02();
 	cout << "ref2 = " << ref2 << endl;
 	cout << "ref2 = " << ref2 << endl;
 
-	test02() = 1000;
+	test02() = 1000;  // 可寻址的左值，可以修改，即修改了 a 这一数据
+    // 相当于 a = 1000；
+    // 也相当于 ref = 1000；
+    // 指向同一地址
 
 	cout << "ref2 = " << ref2 << endl;
 	cout << "ref2 = " << ref2 << endl;
@@ -534,7 +558,7 @@ int main(){
 
 结论：C++推荐用引用技术，因为语法方便，引用本质是指针常量，但是所有的指针操作编译器都帮我们做了
 
-
+> 引用不可更改的本质是因为**指针常量的指向不可更改**
 
 
 
@@ -768,7 +792,32 @@ int main() {
 * 引用作为重载条件
 * 函数重载碰到函数默认参数
 
+**示例：加与不加 const 修饰可以作为重载的区分条件 **
 
+```c++
+#include<iostream>
+using namespace std;
+
+void func(int &a){
+    cout << "in func(int &a)" << endl;
+    cout << "Address: " << &a << endl;
+}
+
+void func(const int &a){
+    cout << "int func(const int &a)" << endl;
+    cout << "Address: " << &a << endl;
+}
+
+int main(){
+    const int a = 10;
+    func(a);  // 此时会调用 const 的重载
+
+    int b = 10;
+    func(b);  // 此事会调用 int 的重载    
+
+    system("pause");
+}
+```
 
 
 
@@ -791,7 +840,7 @@ void func(const int &a)
 
 //2、函数重载碰到函数默认参数
 
-void func2(int a, int b = 10)
+void func2(int a, int b = 10)  // 这种情况下传一个参数也是合法的，因此会产生歧义，无法重载
 {
 	cout << "func2(int a, int b = 10) 调用" << endl;
 }
@@ -816,7 +865,8 @@ int main() {
 }
 ```
 
-
+> 1. 加不加 const 修饰可以作为 引用型变量的函数重载的区分。
+> 2. 当函数由默认值时需要注意，函数参数有默认值时调用时可以不赋这个值，有可能造成重载的歧义。
 
 
 
@@ -868,48 +918,29 @@ C++认为==万事万物都皆为对象==，对象上有其属性和行为
 **示例代码：**
 
 ```C++
-//圆周率
-const double PI = 3.14;
+#include<iostream>
+using namespace std;
 
-//1、封装的意义
-//将属性和行为作为一个整体，用来表现生活中的事物
+const float pi = 3.14;
 
-//封装一个圆类，求圆的周长
-//class代表设计一个类，后面跟着的是类名
-class Circle
+class circle
 {
-public:  //访问权限  公共的权限
+    public: int radius;  // 注意 publi 后面要加 : ，这一点和C#不同
 
-	//属性
-	int m_r;//半径
+    public: void GetPerimeter(){
+        cout << "Perimeter is: " << 2 * radius * pi << endl;
+    }
+};  // 类定义后面要加 ; 和C#也不同
 
-	//行为
-	//获取到圆的周长
-	double calculateZC()
-	{
-		//2 * pi  * r
-		//获取圆的周长
-		return  2 * PI * m_r;
-	}
-};
+int main(){
 
-int main() {
+    circle c1;
+    c1.radius = 5;
+    c1.GetPerimeter();
 
-	//通过圆类，创建圆的对象
-	// c1就是一个具体的圆
-	Circle c1;
-	c1.m_r = 10; //给圆对象的半径 进行赋值操作
-
-	//2 * pi * 10 = = 62.8
-	cout << "圆的周长为： " << c1.calculateZC() << endl;
-
-	system("pause");
-
-	return 0;
+    system("pause");
 }
 ```
-
-
 
 
 
@@ -974,7 +1005,7 @@ int main() {
 2. protected 保护权限
 3. private      私有权限
 
-
+> protected 和 private 的主要区别在于继承时，父类的 protected 方法子类也可以访问但是 private 只能父类自己访问
 
 
 
@@ -1070,7 +1101,42 @@ int main() {
 
 
 
+```C++
+#include<iostream>
+using namespace std;
 
+struct TestS
+{
+    /* data */
+    int data;
+
+    void PrintData(){
+        cout << "data: " << data << endl;
+    }
+
+};
+
+class TestC  // 类与结构体的名称不能相同，不存在重载的概念
+{
+    public: int data;
+
+    public: void PrintData(){
+        cout << "data: " << data << endl;
+    }
+};
+
+// 类与结构体的定义很接近，区别在于权限，结构体的权限默认为 public 而类默认为 private
+
+int main(){
+
+    TestC t;
+
+    t.data = 1;
+    t.PrintData();
+
+    system("pause");
+}
+```
 
 
 
@@ -1104,8 +1170,9 @@ public:
 	{
 		return m_Name;
 	}
-
-
+	
+    // 实现的功能类似于 C# 中的 {get; set;}  方法，不过更麻烦了
+	
 	//获取年龄 
 	int getAge() {
 		return m_Age;
