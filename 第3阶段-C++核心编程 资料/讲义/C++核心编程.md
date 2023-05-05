@@ -227,7 +227,7 @@ int main() {
 
 ​	语法：` new 数据类型`
 
-​	利用new创建的数据，会返回该数据对应的类型的指针
+​	**利用new创建的数据，会返回该数据对应的类型的指针**
 
 
 
@@ -1425,6 +1425,7 @@ void test02() {
 
 	//2.1  括号法，常用
 	Person p1(10);
+    
 	//注意1：调用无参构造函数不能加括号，如果加了编译器认为这是一个函数声明
 	//Person p2();
 
@@ -1432,6 +1433,7 @@ void test02() {
 	Person p2 = Person(10); 
 	Person p3 = Person(p2);
 	//Person(10)单独写就是匿名对象  当前行结束之后，马上析构
+    // 因为后续无法继续访问这个对象，因此立即析构
 
 	//2.3 隐式转换法
 	Person p4 = 10; // Person p4 = Person(10); 
@@ -1454,7 +1456,8 @@ int main() {
 
 
 
-
+> 1. 注意无参构造时不能加括号，编译器会将它理解为函数声明，如 Person p()，就会被理解为声明了一个返回类型为 Person 的函数而不是创建了一个对象。
+> 2. 注意不要利用拷贝构造函数初始化匿名对象，如 Person(p3), 编译器会理解为 Person p3; 即创建一个新的Person对象命名为 p3，然而 p3 已经被声明，因此会报错。
 
 
 
@@ -1475,66 +1478,84 @@ C++中拷贝构造函数调用时机通常有三种情况
 **示例：**
 
 ```C++
+#include<iostream>
+using namespace std;
+
 class Person {
 public:
+	//无参（默认）构造函数
 	Person() {
-		cout << "无参构造函数!" << endl;
-		mAge = 0;
+		cout << "Default constructor" << endl;
 	}
-	Person(int age) {
-		cout << "有参构造函数!" << endl;
-		mAge = age;
+	//有参构造函数
+	Person(int a) {
+		age = a;
+		cout << "Parameterized constructor" << endl;
 	}
+	//拷贝构造函数
 	Person(const Person& p) {
-		cout << "拷贝构造函数!" << endl;
-		mAge = p.mAge;
+		age = p.age;
+		cout << "Copy constructor" << endl;
 	}
-	//析构函数在释放内存之前调用
+	//析构函数
 	~Person() {
-		cout << "析构函数!" << endl;
+		cout << "Destructor" << endl;
 	}
 public:
-	int mAge;
+	int age;
 };
 
 //1. 使用一个已经创建完毕的对象来初始化一个新对象
 void test01() {
 
-	Person man(100); //p对象已经创建完毕
-	Person newman(man); //调用拷贝构造函数
-	Person newman2 = man; //拷贝构造
+	Person man(100);  // p对象已经创建完毕 有参构造
+	Person newman(man);  // 调用拷贝构造函数
+	Person newman2 = man;  // 拷贝构造
+	Person newman3;  // 已经完成了构造，方式为无参构造
+	newman3 = man;  // 这里已经不是调用拷贝构造函数，而是赋值操作
 
-	//Person newman3;
-	//newman3 = man; //不是调用拷贝构造函数，赋值操作
+    cout << "man: " << &man << " newman: " << &newman << 
+    " newman2: " << &newman2 << " newman3: " << &newman3 << endl;
+    // 四个对象的地址都不一样，是四个不同的对象
 }
 
 //2. 值传递的方式给函数参数传值
 //相当于Person p1 = p;
-void doWork(Person p1) {}
+void doWork(Person p1) {
+    cout << &p1 << endl;
+}
+
 void test02() {
 	Person p; //无参构造函数
+    cout << &p << endl;
 	doWork(p);
+    // doWork 中打印的地址与 test02 中打印的地址是不一样的，这表明了有两个不同的对象
+    // 在给函数传递值的时候新建了一个对象，这也解释了为什么值传递不能改变外部的值。
 }
 
 //3. 以值方式返回局部对象
 Person doWork2()
 {
-	Person p1;
-	cout << (int *)&p1 << endl;
+	Person p1(10);
+	cout << "dowork: " << &p1 << endl;
 	return p1;
 }
 
 void test03()
 {
 	Person p = doWork2();
-	cout << (int *)&p << endl;
+	cout << "test03: " << &p << endl;
 }
 
+// gcc version 8.1.0
+// 运行结果这二者的地址相同，这证明了在 test03 中并没有创建一个新的对象，
+// 因此在 test03 中并不会调用拷贝构造，猜测这里是编译器优化了，对函数的结果进行了保存。
+// 在c++11标准后增加了复制省略，减少不必要的拷贝
 
 int main() {
 
-	//test01();
-	//test02();
+	// test01();
+	// test02();
 	test03();
 
 	system("pause");
@@ -1544,6 +1565,48 @@ int main() {
 ```
 
 
+
+```c++
+#include<iostream>
+using namespace std;
+
+class A{
+    
+public:
+    int a;
+    
+public:    
+    A(int val){
+        a = val;
+    }
+    
+    // 注释掉析构函数则会在main中再实例化一个对象
+    // 猜测是系统自动创建了能够回收对象的析构函数
+    ~A(){
+        cout << "A Destructor..." << endl;
+    }
+};
+
+
+A Func(){
+    A cur(10);
+    cout << "Func: " << &cur << " a: " << cur.a << endl;
+    return cur;
+}
+
+// C++17， gcc 8.0.1 
+// 在自定义了析构函数之后，并且这个析构函数并没有回收操作后
+// 下面的 main 中并不会创建新的对象，res 的地址为 Func() 中定义的 cur;
+
+int main(){
+
+    A res = Func();
+    cout << "Main: " << &res << " a: " << res.a << endl;
+    // test03();
+    // cout << __cplusplus << endl;
+    system("pause");
+}
+```
 
 
 
@@ -1555,7 +1618,7 @@ int main() {
 
 2．默认析构函数(无参，函数体为空)
 
-3．默认拷贝构造函数，对属性进行值拷贝
+3．默认拷贝构造函数，对属性进行值拷贝, **这个函数是有实现的，会将右值的对象属性都赋给左值 **
 
 
 
@@ -1629,7 +1692,8 @@ int main() {
 
 
 
-
+> 1. 如果用户提供了有参构造则编译器不会提供默认构造，但是会提供拷贝构造
+> 2. 如果用户提供了拷贝构造，编译器不会提供其他的构造函数
 
 
 
@@ -1666,7 +1730,7 @@ public:
 		cout << "有参构造函数!" << endl;
 
 		m_age = age;
-		m_height = new int(height);
+		m_height = new int(height);  // new 返回一个指针
 		
 	}
 	//拷贝构造函数  
@@ -1679,11 +1743,13 @@ public:
 	}
 
 	//析构函数
+    // 主要用于将堆区开辟的数据做释放操作
 	~Person() {
 		cout << "析构函数!" << endl;
 		if (m_height != NULL)
 		{
 			delete m_height;
+             m_height = NULL;  // 防止野指针出现 
 		}
 	}
 public:
@@ -1712,7 +1778,9 @@ int main() {
 }
 ```
 
-> 总结：如果属性有在堆区开辟的，一定要自己提供拷贝构造函数，防止浅拷贝带来的问题
+> 总结：**如果属性有在堆区开辟的，一定要自己提供拷贝构造函数，防止浅拷贝带来的问题**
+>
+> 由于系统自带的拷贝函数只会把属性的对应值直接拷贝，若属性值为一个指针则会拷贝这个地址，这就意味着两个实例化对象的某一属性（指针）指向了堆区的同一个位置，在析构时就会出现重复释放空间的非法操作，因此需要在拷贝函数中做深拷贝，在堆中新开辟一块内存存放对应的属性值。
 
 
 
@@ -1875,7 +1943,8 @@ int main() {
 
 
 
-
+> 当类中成员是其他类对象时，我们称该成员为 对象成员。构造的顺序是 ：先调用对象成员的构造，再调用本类构造
+> 析构顺序与构造相反
 
 
 
@@ -1893,11 +1962,11 @@ int main() {
 
 *  静态成员变量
    *  所有对象共享同一份数据
-   *  在编译阶段分配内存
+   *  在编译阶段分配内存   **静态变量存放在全局区**
    *  类内声明，类外初始化
 *  静态成员函数
    *  所有对象共享同一个函数
-   *  静态成员函数只能访问静态成员变量
+   *  **静态成员函数只能访问静态成员变量**
 
 
 
@@ -1923,7 +1992,7 @@ public:
 private:
 	static int m_B; //静态成员变量也是有访问权限的
 };
-int Person::m_A = 10;
+int Person::m_A = 10;  // :: 代表作用域
 int Person::m_B = 10;
 
 void test01()
@@ -1956,6 +2025,9 @@ int main() {
 	return 0;
 }
 ```
+
+> 1. 静态变量类内不能初始化，只能声明
+> 2. 静态变量的初始化要在类外且不能在main函数内。
 
 
 
@@ -2016,7 +2088,8 @@ int main() {
 }
 ```
 
-
+> 1. 静态的变量与函数都不属于某一个特定的对象，因此只需要实例化一份。
+> 2. 静态函数只能访问静态变量（因为无法区分是哪个对象的属性），非静态函数可以访问与修改所有类中的变量
 
 
 
@@ -2035,6 +2108,33 @@ int main() {
 在C++中，类内的成员变量和成员函数分开存储
 
 只有非静态成员变量才属于类的对象上
+
+**虽然封装的概念似乎把类内的变量与函数看作整体**
+
+```c++
+#include<iostream>
+using namespace std;
+
+class Person{
+	// int m_A;  // 若类中定义了非静态变量则对象大小会发生变化，这也印证了非静态变量属于对象
+    // static int m_A;  // 定义静态变量不会影响对象的大小，不属于某个对象
+};
+
+void test01(){
+
+    Person p;
+    cout << "Size: " << sizeof(p) << endl;
+}
+
+int main(){
+
+    test01();  // 输出为 1
+
+    system("pause");
+}
+```
+
+> 空对象占用内存空间为1，C++ 编译器会给每个空对象也分配一个字节的空间，以区分空对象占内存的位置，每个空对象也应该有一个独一无二的内存地址
 
 
 
@@ -2069,7 +2169,7 @@ int main() {
 
 
 
-
+> 只有非静态成员变量属于某一个对象，其他的都不属于
 
 
 
@@ -2141,6 +2241,56 @@ int main() {
 
 
 
+```c++
+#include<iostream>
+using namespace std;
+
+class Person{
+    public:
+        int m_age;
+
+        Person(int val): m_age(val){cout << "Construction ..." << endl;}
+        Person(const Person& p) {m_age = p.m_age; cout << "Copy Construction ..." << endl;}
+
+        ~Person() {cout << "Destruction ..." << endl;}
+
+        // 如果不加引用的话每次调用完返回一个新的对象
+        // 即不能完成下面的多次累加
+        // 返回本体必须加引用
+        // 以值方式返回的话会拷贝一份新的数据出来而不是返回原始的数据
+        
+        Person& addAge(Person p){
+            cout << "addAge to: " << this << endl;
+            this->m_age += p.m_age;
+            return *this;  // 取得 this 里面的值，即 person 对象
+        }
+
+};
+
+void test01(){
+
+    Person p1(10); Person p2(20);
+    cout << "p1: " << &p1 << " p2: " << &p2 << endl;
+    p1.addAge(p2).addAge(p2).addAge(p2);  
+    cout << "p1 Age: " << p1.m_age << endl;  
+    cout << "p2 Age: " << p2.m_age << endl;  
+
+}
+
+int main(){
+
+    test01();
+
+    system("pause");
+}
+```
+
+
+
+![](assets\Person addAge.png)
+
+![](assets\Person& addAge.png)
+
 
 
 
@@ -2171,7 +2321,7 @@ public:
 	}
 
 	void ShowPerson() {
-		if (this == NULL) {
+		if (this == NULL) {  // 一般要先判断是否为空指针
 			return;
 		}
 		cout << mAge << endl;
@@ -2200,7 +2350,7 @@ int main() {
 
 
 
-
+> 访问对象的属性时隐式地调用了 this 指针，即  mAge = this->mAge; 但初始化一个空指针并没有这些属性，所以会报错
 
 
 
@@ -2213,7 +2363,7 @@ int main() {
 **常函数：**
 
 * 成员函数后加const后我们称为这个函数为**常函数**
-* 常函数内不可以修改成员属性
+* **常函数内不可以修改成员属性**
 * 成员属性声明时加关键字mutable后，在常函数中依然可以修改
 
 
@@ -2239,12 +2389,14 @@ public:
 		m_B = 0;
 	}
 
-	//this指针的本质是一个指针常量，指针的指向不可修改
+	//this指针的本质是一个指针常量，指针的指向不可修改, 只能指向当前对象
 	//如果想让指针指向的值也不可以修改，需要声明常函数
-	void ShowPerson() const {
+    // 函数声明后面加的 const 相当于 const Person* const this 中的第一个 const，限制指针指向的值也不可修改
+	// 此时该函数即为常函数
+    void ShowPerson() const {
 		//const Type* const pointer;
 		//this = NULL; //不能修改指针的指向 Person* const this;
-		//this->mA = 100; //但是this指针指向的对象的数据是可以修改的
+		//this->mA = 100; // 但是this指针指向的对象的数据是可以修改的
 
 		//const修饰成员函数，表示指针指向的内存空间的数据不能修改，除了mutable修饰的变量
 		this->m_B = 100;
@@ -2269,7 +2421,7 @@ void test01() {
 	person.m_B = 100; //但是常对象可以修改mutable修饰成员变量
 
 	//常对象访问成员函数
-	person.MyFunc(); //常对象不能调用const的函数
+	person.MyFunc(); //常对象只能调用const的函数
 
 }
 
@@ -2283,7 +2435,8 @@ int main() {
 }
 ```
 
-
+> 1. mutable 修饰的成员属性在常对象和常函数中都可以修改
+> 2. **常对象只能调用常函数**
 
 
 
