@@ -135,7 +135,9 @@ int main() {
 
 ​		由编译器自动分配释放, 存放函数的参数值,局部变量等
 
-​		注意事项：不要返回局部变量的地址，栈区开辟的数据由编译器自动释放
+​		注意事项：**不要返回局部变量的地址**，栈区开辟的数据由编译器自动释放
+
+**需要注意的是，仅仅是局部变量的地址不能返回，而可以返回局部变量的值，因为值返回会构造一个新的对象，不涉及局部对象的传递，而局部变量在函数执行完后销毁，如果想访问局部变量原始的地址是非法的，因此无论是返回地址还是引用都是错误的，但是可以返回值。**
 
 
 
@@ -2483,7 +2485,7 @@ int main() {
 class Building
 {
 	//告诉编译器 goodGay全局函数 是 Building类的好朋友，可以访问类中的私有内容
-	friend void goodGay(Building * building);
+	friend void goodGay(Building * building);  // 参数名称不一定要相同，只要符合不会被理解为重载的规则
 
 public:
 
@@ -2531,7 +2533,7 @@ int main(){
 
 
 ```C++
-class Building;
+class Building;  // 先声明这个类,后面就不会报错
 class goodGay
 {
 public:
@@ -2558,6 +2560,8 @@ private:
 	string m_BedRoom;//卧室
 };
 
+//================== 上面将函数声明在了类中，以下用 :: 限定作用域并具体实现这些函数 ==================//
+
 Building::Building()
 {
 	this->m_SittingRoom = "客厅";
@@ -2566,7 +2570,7 @@ Building::Building()
 
 goodGay::goodGay()
 {
-	building = new Building;
+	building = new Building;  // new 返回指针
 }
 
 void goodGay::visit()
@@ -2574,6 +2578,7 @@ void goodGay::visit()
 	cout << "好基友正在访问" << building->m_SittingRoom << endl;
 	cout << "好基友正在访问" << building->m_BedRoom << endl;
 }
+//=============================================================================================//
 
 void test01()
 {
@@ -2618,7 +2623,7 @@ private:
 class Building
 {
 	//告诉编译器  goodGay类中的visit成员函数 是Building好朋友，可以访问私有内容
-	friend void goodGay::visit();
+	friend void goodGay::visit();  // :: 限定作用域
 
 public:
 	Building();
@@ -2670,7 +2675,13 @@ int main(){
 
 
 
-
+> 总结：友元有三种使用方式
+>
+> 1. 全局函数做友元：即 friend void visit();  不用限定作用域
+> 2. 类做友元，即 friend class goodGay;
+> 3. 类中方法（成员函数）做友元，要限定作用域, 即 goodGay::visit();
+>
+> 友元可以访问类内的私有成员
 
 
 
@@ -2739,6 +2750,7 @@ void test() {
 
 	//成员函数方式
 	Person p3 = p2 + p1;  //相当于 p2.operaor+(p1)
+    // 本质是调用了 p2.operator+(p1) 再将结果拷贝给 p3
 	cout << "mA:" << p3.m_A << " mB:" << p3.m_B << endl;
 
 
@@ -2762,6 +2774,8 @@ int main() {
 > 总结1：对于内置的数据类型的表达式的的运算符是不可能改变的
 
 > 总结2：不要滥用运算符重载
+
+> 运算符重载也可以重载
 
 
 
@@ -2790,6 +2804,7 @@ public:
 	}
 
 	//成员函数 实现不了  p << cout 不是我们想要的效果
+    // 因为成员函数重载的运算符操作本质上都是 p.operator(xxx)，因此是 p 在左边，想要的结果为 cout << p
 	//void operator<<(Person& p){
 	//}
 
@@ -2799,10 +2814,10 @@ private:
 };
 
 //全局函数实现左移重载
-//ostream对象只能有一个
+//ostream对象只能有一个  输出流操作对象
 ostream& operator<<(ostream& out, Person& p) {
 	out << "a:" << p.m_A << " b:" << p.m_B;
-	return out;
+	return out;  // 保证返回值为 cout 对象
 }
 
 void test() {
@@ -2824,7 +2839,7 @@ int main() {
 
 
 
-> 总结：重载左移运算符配合友元可以实现输出自定义数据类型
+> 总结：**重载左移运算符配合友元**可以实现输出自定义数据类型
 
 
 
@@ -2844,6 +2859,8 @@ int main() {
 
 作用： 通过重载递增运算符，实现自己的整型数据
 
+**++a 先进行递增再进行表达式的运算，a++ 先进行表达式的运算再递增。**
+
 
 
 ```C++
@@ -2861,15 +2878,18 @@ public:
 		//先++
 		m_Num++;
 		//再返回
-		return *this;
+		return *this;  // *this 解引用，返回 MyInterger 类型对象
+        // 而且必须返回引用，返回值会新创建一个对象，不能实现对于原数据的连续操作
 	}
 
 	//后置++
+    // 注意这里必须在参数中加 (int) 表示占位，否则会造成函数的重定义（返回值不能用于区分重载）
+    // 注意只能返回值而不能返回引用，返回局部变量的引用非法
 	MyInteger operator++(int) {
 		//先返回
 		MyInteger temp = *this; //记录当前本身的值，然后让本身的值加1，但是返回的是以前的值，达到先返回后++；
 		m_Num++;
-		return temp;
+		return temp;  // 返回创建的新对象，即记录 ++ 操作之前的对象的备份，原始的对象已经执行了 ++ 操作
 	}
 
 private:
@@ -2911,7 +2931,7 @@ int main() {
 
 
 
-> 总结： 前置递增返回引用，后置递增返回值
+> 总结： **前置递增返回引用，后置递增返回值**
 
 
 
