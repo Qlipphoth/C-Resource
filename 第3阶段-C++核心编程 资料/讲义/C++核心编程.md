@@ -2976,7 +2976,7 @@ public:
 	Person(int age)
 	{
 		//将年龄数据开辟到堆区
-		m_Age = new int(age);
+		m_Age = new int(age);  // new 返回一个指针
 	}
 
 	//重载赋值运算符 
@@ -2991,7 +2991,9 @@ public:
 		//m_Age = p.m_Age;
 
 		//提供深拷贝 解决浅拷贝的问题
-		m_Age = new int(*p.m_Age);
+		m_Age = new int(*p.m_Age);  
+         // 由于在堆区 new 开辟的数据，对应的属性为一个指针，因此浅拷贝会复制一份地址，而这不是我们想要的效果
+         // 对象在析构时会释放对应地址中的值，这样一来拷贝的对象中指向的地址即变为非法，解决方式为深拷贝，再开辟          // 出一块区域用于存储数据
 
 		//返回自身
 		return *this;
@@ -3021,7 +3023,7 @@ void test01()
 
 	Person p3(30);
 
-	p3 = p2 = p1; //赋值操作
+	p3 = p2 = p1; //赋值操作  // 为了能够链式操作，重载的赋值运算也要返回原对象的引用
 
 	cout << "p1的年龄为：" << *p1.m_Age << endl;
 
@@ -3051,7 +3053,57 @@ int main() {
 
 
 
+```c++
+#include<iostream>
+using namespace std;
 
+class Person{
+    public:
+        int* m_Age;
+        Person(int age);
+        ~Person();
+        Person& operator=(Person &p);
+};
+
+Person::Person(int age){
+    m_Age = new int(age);
+}
+
+Person::~Person(){
+    if (m_Age != NULL){
+        delete m_Age;
+        m_Age = NULL;
+    }
+}
+
+Person& Person::operator=(Person &p){
+    if (m_Age != NULL){
+        delete m_Age;
+        m_Age = NULL;
+    }
+
+    m_Age = new int(*p.m_Age);  // p.m_Age 是个指针，需要解引用
+    return *this;  // 返回自身的引用
+}
+
+
+void test(){
+    Person p1(10);
+    Person p2(20);
+    cout << "p1: " << p1.m_Age << " p2: " << p2.m_Age << endl;
+    cout << "*p1: " << *p1.m_Age << " *p2: " << *p2.m_Age << endl;
+    p1 = p2;  // p1.operator=(p2);
+    cout << "p1: " << p1.m_Age << " p2: " << p2.m_Age << endl;
+    cout << "*p1: " << *p1.m_Age << " *p2: " << *p2.m_Age << endl;
+
+    // 这里发现赋值运算前后 p1 和 p2 的 m_Age 指针并没有发生变化，猜测又是编译器的优化
+}
+
+int main(){
+    test();
+    system("pause");
+}
+```
 
 
 
@@ -3143,7 +3195,7 @@ int main() {
 }
 ```
 
-
+> 关系运算符返回布尔型值
 
 
 
@@ -3152,7 +3204,7 @@ int main() {
 
 
 * 函数调用运算符 ()  也可以重载
-* 由于重载后使用的方式非常像函数的调用，因此称为仿函数
+* **由于重载后使用的方式非常像函数的调用，因此称为仿函数**
 * 仿函数没有固定写法，非常灵活
 
 
@@ -3173,7 +3225,7 @@ void test01()
 {
 	//重载的（）操作符 也称为仿函数
 	MyPrint myFunc;
-	myFunc("hello world");
+	myFunc("hello world");  // 实际上并不是调用函数而是关系符重载，相当于 muFunc.operator()("hello world")
 }
 
 
@@ -3194,6 +3246,7 @@ void test02()
 
 	//匿名对象调用  
 	cout << "MyAdd()(100,100) = " << MyAdd()(100, 100) << endl;
+    // Myadd() 实际上创建了一个匿名对象，因此可以调用其中的 MyAdd 方法
 }
 
 int main() {
@@ -3488,7 +3541,7 @@ B 类称为父类 或 基类
 
 ![img](assets/clip_image002.png)
 
-
+> 不同的继承方式会导致子类中不同属性的权限改变
 
 
 
@@ -3517,6 +3570,7 @@ public:
 	}
 };
 
+// 子类可访问到父类中的 protected 权限属性，其他类不能
 void myClass()
 {
 	Son1 s1;
@@ -3538,6 +3592,7 @@ class Son2:protected Base2
 public:
 	void func()
 	{
+        // 保护继承使得父类中的 public 与 protected 权限都变为 protected 权限
 		m_A; //可访问 protected权限
 		m_B; //可访问 protected权限
 		//m_C; //不可访问
@@ -3564,6 +3619,7 @@ class Son3:private Base3
 public:
 	void func()
 	{
+        // private 继承使得父类中的 public 与 protected 权限都变为 private
 		m_A; //可访问 private权限
 		m_B; //可访问 private权限
 		//m_C; //不可访问
