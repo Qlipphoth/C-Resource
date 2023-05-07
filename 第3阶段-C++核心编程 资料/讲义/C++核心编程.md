@@ -4895,6 +4895,8 @@ public:
 	void work()
 	{
 		//让零件工作起来，调用接口
+        // 这里体现了多态的概念，Computer内的成员指针都是父类的指针，父类中为虚函数，
+        // 晚绑定，指向子类的不同具体实现
 		m_cpu->calculate();
 
 		m_vc->display();
@@ -5101,7 +5103,7 @@ C++中对文件操作需要包含头文件 ==&lt; fstream &gt;==
 | ios::trunc  | 如果文件存在先删除，再创建 |
 | ios::binary | 二进制方式                 |
 
-**注意：** 文件打开方式可以配合使用，利用|操作符
+**注意：** **文件打开方式可以配合使用，利用|操作符**
 
 **例如：**用二进制方式写文件 `ios::binary |  ios:: out`
 
@@ -5119,7 +5121,7 @@ void test01()
 	ofstream ofs;
 	ofs.open("test.txt", ios::out);
 
-	ofs << "姓名：张三" << endl;
+	ofs << "姓名：张三" << endl;  // 把字符串左移到文件流对象中
 	ofs << "性别：男" << endl;
 	ofs << "年龄：18" << endl;
 
