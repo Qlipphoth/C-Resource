@@ -810,7 +810,7 @@ int main() {
 总结：
 
 * 类模板使用只能用显示指定类型方式
-* 类模板中的模板参数列表可以有默认参数
+* **类模板中的模板参数列表可以有默认参数**
 
 
 
@@ -863,7 +863,7 @@ public:
 	T obj;
 
 	//类模板中的成员函数，并不是一开始就创建的，而是在模板调用时再生成
-
+	// 因为目前不能判断 obj 的类型，也无法判断你不能调用下面的这些方法
 	void fun1() { obj.showPerson1(); }
 	void fun2() { obj.showPerson2(); }
 
@@ -888,7 +888,7 @@ int main() {
 }
 ```
 
-总结：类模板中的成员函数并不是一开始就创建的，在调用时才去创建
+总结：类模板中的成员函数**并不是一开始就创建的，在调用时才去创建**
 
 
 
@@ -955,6 +955,7 @@ template <class T1, class T2>
 void printPerson2(Person<T1, T2>&p)
 {
 	p.showPerson();
+    // 显示编译器推导出的类型名称
 	cout << "T1的类型为： " << typeid(T1).name() << endl;
 	cout << "T2的类型为： " << typeid(T2).name() << endl;
 }
@@ -990,10 +991,64 @@ int main() {
 }
 ```
 
+```c++
+#include<iostream>
+using namespace std;
+
+template<class T1, class T2 = int>  // 指定数据类型，默认类型参数
+class Person{
+    public:
+        T1 mName;
+        T2 mAge;
+
+        Person(T1 name, T2 age): mName(name), mAge(age) {};
+        
+        void ShowPerson(){
+            cout << "name: " << mName << " age: " << mAge <<endl;
+            cout << "name type: "  << typeid(mName).name() << endl;
+            cout << "age type: "  << typeid(mAge).name() << endl;  // 打印类型名称
+        }
+};
+
+// 类模板的实例化对象向函数传参
+// 1. 指定数据类型
+void printPerson1(Person<string, int> &p){
+    p.ShowPerson();
+}
+
+// 2. 将对象中的参数也变成模板，让编译器自己推导类型，是一种函数模板和类模板联合使用的方式
+template<class T1, class T2>
+void printPerson2(Person<T1, T2> &p){
+    p.ShowPerson();
+}
+
+// 3. 将整个类作为参数，让编译器自行推导，也是一种函数模板和类模板联合使用的方式
+template<class T>
+void printPerson3(T &p){
+    p.ShowPerson();
+}
+
+void test01(){
+    Person<string, int> p("Alice", 18);  // 类模板使用时必须指定数据类型
+    // printPerson1(p);
+    // printPerson2(p);
+    printPerson3(p);
+}
+
+// 不建议使用 2，3 它们把问题更加复杂化了
+
+int main(){
+    test01();
+    system("pause");
+}
+```
+
+
+
 总结：
 
 * 通过类模板创建的对象，可以有三种方式向函数中进行传参
-* 使用比较广泛是第一种：指定传入的类型
+* **使用比较广泛是第一种：指定传入的类型**
 
 
 
@@ -1010,9 +1065,8 @@ int main() {
 当类模板碰到继承时，需要注意一下几点：
 
 * 当子类继承的父类是一个类模板时，子类在声明的时候，要指定出父类中T的类型
-* 如果不指定，编译器无法给子类分配内存
-* 如果想灵活指定出父类中T的类型，子类也需变为类模板
-
+* **如果不指定，编译器无法给子类分配内存**
+* **如果想灵活指定出父类中T的类型，子类也需变为类模板**
 
 
 
@@ -1129,7 +1183,7 @@ int main() {
 }
 ```
 
-总结：类模板中成员函数类外实现时，需要加上模板参数列表
+总结：类模板中成员函数类外实现时，**需要加上模板参数列表**
 
 
 
@@ -1149,7 +1203,7 @@ int main() {
 
 问题：
 
-* 类模板中成员函数创建时机是在调用阶段，导致分文件编写时链接不到
+* **类模板中成员函数创建时机是在调用阶段，导致分文件编写时链接不到**
 
 
 解决：
@@ -1321,7 +1375,7 @@ int main() {
 }
 ```
 
-总结：建议全局函数做类内实现，用法简单，而且编译器可以直接识别
+总结：**建议全局函数做类内实现，用法简单，而且编译器可以直接识别**
 
 
 
@@ -1387,7 +1441,7 @@ public:
 		}
 	}
 
-	//重载= 操作符  防止浅拷贝问题
+	//重载= 操作符  防止浅拷贝问题  注意这里也是 const & 类型
 	MyArray& operator=(const MyArray& myarray) {
 
 		if (this->pAddress != NULL) {
@@ -1406,13 +1460,14 @@ public:
 	}
 
 	//重载[] 操作符  arr[0]
+    // 返回 T& 是为了使得返回值可以作为左值使用，可以赋值
 	T& operator [](int index)
 	{
 		return this->pAddress[index]; //不考虑越界，用户自己去处理
 	}
 
 	//尾插法
-	void Push_back(const T & val)
+	void Push_back(const T & val)  // 注意 const T &val 
 	{
 		if (this->m_Capacity == this->m_Size)
 		{
@@ -1563,7 +1618,9 @@ int main() {
 
 能够利用所学知识点实现通用的数组
 
-
+> 一个逻辑，如果只是传值进函数，那么会重新拷贝一次并且不指向原始数据，会有很多不便，因此要传引用进函数，这样就避免了拷贝且可以修改外部变量；
+>
+> 但有时候我们不希望在函数内部修改这个变量，因此使用 const 修饰引用，即不可更改引用所指向的值，但引用本身也是个指针，且地址不可更改，因此变成了常量指针常量（误
 
 
 
@@ -1750,6 +1807,37 @@ int main() {
 }
 ```
 
+```c++
+#include<iostream>
+#include<vector>
+#include<algorithm>
+using namespace std;
+
+void MyPrint(int val){
+    cout << val << endl;
+}
+
+void test01(){
+    vector<int> v(5, 1);  // 赋值为 5 个 1
+    for (vector<int>::iterator it = v.begin(); it != v.end(); it ++){
+        MyPrint(*it);
+    }
+    
+}
+
+// for_each 的迭代方式更优雅
+void test02(){
+    vector<int> v(5, 1);  // 赋值为 5 个 1
+    for_each(v.begin(), v.end(), MyPrint);
+}
+
+int main(){
+    // test01();
+    test02();
+    system("pause");
+}
+```
+
 
 
 #### 2.5.2 Vector存放自定义数据类型
@@ -1805,7 +1893,7 @@ void test01() {
 //放对象指针
 void test02() {
 
-	vector<Person*> v;
+	vector<Person*> v;  // 容器中存放的类型为指针
 
 	//创建数据
 	Person p1("aaa", 10);
@@ -1814,12 +1902,13 @@ void test02() {
 	Person p4("ddd", 40);
 	Person p5("eee", 50);
 
-	v.push_back(&p1);
-	v.push_back(&p2);
+	v.push_back(&p1);  // 传地址，相当于迭代器指针指向了Person类型的指针
+	v.push_back(&p2);  // 需要先 * 解迭代器引用，再利用 -> 取得数据
 	v.push_back(&p3);
 	v.push_back(&p4);
 	v.push_back(&p5);
 
+    // 这里也要注意指针
 	for (vector<Person*>::iterator it = v.begin(); it != v.end(); it++) {
 		Person * p = (*it);
 		cout << "Name:" << p->mName << " Age:" << (*it)->mAge << endl;
@@ -1912,14 +2001,14 @@ int main() {
 
 **本质：**
 
-* string是C++风格的字符串，而string本质上是一个类
+* string是C++风格的字符串，而**string本质上是一个类***
 
 
 
 **string和char * 区别：**
 
 * char * 是一个指针
-* string是一个类，类内部封装了char\*，管理这个字符串，是一个char*型的容器。
+* **string是一个类，类内部封装了char\*，管理这个字符串，是一个char*型的容器。**
 
 
 
@@ -2482,7 +2571,7 @@ int main() {
 
 **动态扩展：**
 
-* 并不是在原空间之后续接新空间，而是找更大的内存空间，然后将原数据拷贝新空间，释放原空间
+* **并不是在原空间之后续接新空间，而是找更大的内存空间，然后将原数据拷贝新空间，释放原空间**
 
 
 
@@ -2986,6 +3075,8 @@ void test02()
 	cout << "v的大小为：" << v.size() << endl;
 
 	//收缩内存
+    // vector<int>(v) 利用拷贝构造的方式初始化一个匿名对象，其大小为v的size大小，即为3
+    // 原理存疑
 	vector<int>(v).swap(v); //匿名对象
 
 	cout << "v的容量为：" << v.capacity() << endl;
