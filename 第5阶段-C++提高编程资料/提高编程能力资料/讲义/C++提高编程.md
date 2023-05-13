@@ -4781,6 +4781,8 @@ int main() {
 ```C++
 #include <list>
 #include <string>
+using namespace std;
+
 class Person {
 public:
 	Person(string name, int age , int height) {
@@ -4854,7 +4856,7 @@ int main() {
 
 总结：
 
-* 对于自定义数据类型，必须要指定排序规则，否则编译器不知道如何进行排序
+* **对于自定义数据类型，必须要指定排序规则，否则编译器不知道如何进行排序**
 
 
 * 高级排序只是在排序规则上再进行一次逻辑规则制定，并不复杂
@@ -4970,7 +4972,7 @@ int main() {
 
 总结：
 
-* set容器插入数据时用insert
+* **set容器插入数据时用insert**
 * set容器插入数据的数据会自动排序
 
 
@@ -5278,7 +5280,9 @@ int main() {
 * set插入数据的同时会返回插入结果，表示插入是否成功
 * multiset不会检测数据，因此可以插入重复数据
 
-
+> set 的 insert 操作返回值为一个 pair\<iterator, bool>, 会返回插入位置的迭代器以及是否成功的布尔变量
+>
+> multiset 的 insert 操作只会返回一个迭代器而不会返回第二个布尔值
 
 
 
@@ -5292,7 +5296,8 @@ void test01()
 {
 	set<int> s;
 	pair<set<int>::iterator, bool>  ret = s.insert(10);
-	if (ret.second) {
+	// ret.second 获取第二个布尔变量
+    if (ret.second) {
 		cout << "第一次插入成功!" << endl;
 	}
 	else {
@@ -5358,7 +5363,7 @@ int main() {
 * `pair<type, type> p ( value1, value2 );`
 * `pair<type, type> p = make_pair( value1, value2 );`
 
-
+> 通过 p.first 及 p.second 来访问
 
 
 
@@ -5470,6 +5475,43 @@ int main() {
 }
 ```
 
+```C++
+#include<iostream>
+#include<set>
+using namespace std;
+
+class MyCompare
+{
+public:
+    // 仿函数，从大到小排序
+    // GCC 8.3.1 之后必须在 operator 方法后添加关键字 const
+    bool operator()(int v1, int v2) const {
+        return v1 > v2;
+    }
+};
+
+void test1()
+{
+    // 指定排序方式
+    set<int, MyCompare> s1;
+    s1.insert(10);
+    s1.insert(20);
+    s1.insert(30);
+    s1.insert(40);
+
+    for (set<int, MyCompare>::iterator it = s1.begin(); it != s1.end(); it ++){
+        cout << *it << " ";
+    }
+    cout << endl;
+}
+
+
+int main(){
+    test1();
+    system("pause");
+}
+```
+
 总结：利用仿函数可以指定set容器的排序规则
 
 
@@ -5554,7 +5596,7 @@ int main() {
 
 * map中所有元素都是pair
 * pair中第一个元素为key（键值），起到索引作用，第二个元素为value（实值）
-* 所有元素都会根据元素的键值自动排序
+* **所有元素都会根据元素的键值自动排序**
 
 
 
@@ -5924,7 +5966,7 @@ int main() {
 
 **学习目标：**
 
-- map容器默认排序规则为 按照key值进行 从小到大排序，掌握如何改变排序规则
+- map容器默认排序规则为 **按照key值**进行 从小到大排序，掌握如何改变排序规则
 
 
 
@@ -6327,7 +6369,7 @@ int main() {
 
 总结：参数只有一个的谓词，称为一元谓词
 
-
+> find_if 返回值为一个迭代器，如果找到了满足条件的返回对应位置的迭代器，没有找到的话返回 end 的迭代器
 
 
 
@@ -6617,7 +6659,7 @@ void test01()
 
 	//逻辑非  将v容器搬运到v2中，并执行逻辑非运算
 	vector<bool> v2;
-	v2.resize(v.size());
+	v2.resize(v.size());  // 要先指定空间再搬运
 	transform(v.begin(), v.end(),  v2.begin(), logical_not<bool>());
 	for (vector<bool>::iterator it = v2.begin(); it != v2.end(); it++)
 	{
